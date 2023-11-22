@@ -17,29 +17,24 @@ import re
 
 # ... (código previo)
 
-def buscar_en_bing(query, num_resultados=10):
-    url = f"https://www.bing.com/search?q={query}&count={num_resultados}&setLang=es-MX&setmkt=es-MX&setLang=es&mkt=es-MX"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+def buscar_en_bing(query, num_resultados=50):
+    for pagina in range(1, 6):
+        
+        offset = (pagina - 1) * num_resultados
+        url = f"https://www.bing.com/search?q={query}&offset={offset}&count={num_resultados}&setLang=es-MX&mkt=es-MX"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
-
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "html.parser")
         resultados_definiciones = soup.find_all("li", class_="b_algo")
         patrones = [
-            r'\b(definid[oa]s? como?)\b',
-            r'\b(conocid[oa]s? como?)\b',
-            r'\b(describ[ie]r?|descript[oa]s?)\b',
-            r'\b(refiere? a)\b',
-            r'\b(reconocid[oa]s? como?)\b',
-            r'\b(es un[oa]s?|son)\b',
-            r'\b(siendo|siendo un[oa]s?)\b',
-            r'\b(apodad[oa]s?|apodado como?)\b',
+            r'\.\s+(\w+)\b', # Verifica si hay un punto delante del término buscado
+            r'\b(?:un[ao]?s?|una[s]?|uno[s]?|el[ao]?s?|la[s]?|los|las|unos?|unas?)\b\s+(\w+)\b', # Verifica si hay un artículo delante del término buscado
+            r'\b(?:se\s+describe|se\s+concibe|es\s+concebido|es)\b', # Verifica si hay "se describe" o "se concibe" después del término buscado
             # ... otras variantes que puedan indicar definiciones
         ]
-
 
         patron_definiciones = re.compile('|'.join(patrones), re.IGNORECASE)
 
@@ -64,8 +59,8 @@ def buscar_en_bing(query, num_resultados=10):
 
 """
 OTRA FUNCION
-"""
 
+"""
 @app.route('/casos', methods=['POST'])
 @cross_origin()
 def casos():
@@ -74,40 +69,25 @@ def casos():
     resultados = buscar_en_bing_casos(termino)
     return jsonify({'results2': resultados})
 
-def buscar_en_bing_casos(query, num_resultados=100):
-    url = f"https://www.bing.com/search?q={query}&count={num_resultados}&setLang=es-MX&setmkt=es-MX&setLang=es&mkt=es-MX"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+def buscar_en_bing_casos(query, num_resultados=50):
+    for pagina in range(1, 6):
+        
+        offset = (pagina - 1) * num_resultados
+        url = f"https://www.bing.com/search?q={query}&offset={offset}&count={num_resultados}&setLang=es-MX&mkt=es-MX"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
-
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "html.parser")
         resultados_definiciones = soup.find_all("li", class_="b_algo")
-
-        palabras_clave = [
-        r'\b(cas[oa]s? de?)\b',
-        r'\b(ejempl[oa]s? de?)\b',
-        r'\b(instanci[ao]n[es]?)\b',
-        r'\b(us[oa]s? de?)\b',
-        r'\b(muestr[ao]s? de?)\b',
-        r'\b(demostraci[óo]n[es]?)\b',
-        r'\b(ilustraci[óo]n[es]?)\b',
-        r'\b(exhibici[óo]n[es]?)\b',
-        r'\b(modelo[os]? de?)\b',
-        r'\b(representaci[óo]n[es]?)\b',
-        r'\b(ejercicio[os]? de?)\b',
-        r'\b(aplicaci[óo]n[es]?)\b',
-        r'\b(instanciaci[óo]n[es]?)\b',
-        r'\b(?:se utiliza[n]?|se emplea[n]?) para\b',
-        r'\b(?:se utiliza[n]?|se emplea[n]?) como\b',
-        r'\b(?:se usa[n]?|se emplea[n]?) para\b',
-        r'\b(?:se usa[n]?|se emplea[n]?) como\b',
-        r'\b(?:se usa[n]?|se emplea[n]?) en\b',
-        r'\b(?:se usa[n]?|se emplea[n]?) con\b',
-            # ... otras variantes que puedan indicar casos o ejemplos
+        patrones = [
+             r'\.\s+(\w+)\b',
+             r'\b(?:consiste\s+en|consta\s+de|esta\s+compuesta|esta\s+fabricada|esta\s+hecho|esta\s+hecha|esta\s+fabricada|esta\s+fabricado|tiene|contiene|cuenta\s+con|consta\s+de)\b',
+             # Verifica si hay "se describe" o "se concibe" después del término buscado
         ]
+
+        patron_definiciones = re.compile('|'.join(patrones), re.IGNORECASE)
 
         resultados_list = []
         for idx, resultado in enumerate(resultados_definiciones, start=1):
@@ -115,18 +95,87 @@ def buscar_en_bing_casos(query, num_resultados=100):
             link = resultado.find("a")["href"]
             descripcion = resultado.find("p").get_text()
 
-            if any(re.search(patron, descripcion, re.IGNORECASE) for patron in palabras_clave):
+            if patron_definiciones.search(descripcion):
                 resultados_list.append({
                     'title': titulo,
                     'url': link,
                     'description': descripcion
                 })
-
     else:
         print(f"Error al realizar la búsqueda. Código de estado: {response.status_code}")
         resultados_list = []
+        
+    # Eliminar duplicados
+    resultados_list = [dict(t) for t in set(tuple(d.items()) for d in resultados_list)]
 
+   
     return resultados_list
+
+
+################
+
+@app.route('/funcion', methods=['POST'])
+@cross_origin()
+def funcion():
+    data = request.get_json()
+    termino = data['termino']
+    resultados = buscar_en_bing_funcion(termino)
+    return jsonify({'results3': resultados})
+
+def buscar_en_bing_funcion(query, num_resultados=50):
+    for pagina in range(1, 6):
+        
+        offset = (pagina - 1) * num_resultados
+        url = f"https://www.bing.com/search?q={query}&offset={offset}&count={num_resultados}&setLang=es-MX&mkt=es-MX"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        resultados_definiciones = soup.find_all("li", class_="b_algo")
+        
+        patrones = [
+            r'\.\s+(\w+)\b', # Verifica si hay un punto delante del término buscado
+            r'(\b(?:se\s+usa|se\s+utiliza|se\s+usan|se\s+utilizan|sirve|sirven|sirven\s+para)\s+(\w+))', # Captura "se usa", "se utiliza", "se usan", "se utilizan", "sirve", "sirven", "sirven para" y la palabra después de ellas
+            ]
+        #texto_ejemplo = "La computadora está compuesta por varios componentes, como el procesador, la memoria y el disco duro. Se utiliza para una variedad de tareas, como navegar por internet, editar documentos y jugar videojuegos."
+
+        patron_definiciones = re.compile('|'.join(patrones), re.IGNORECASE)
+
+#-------------P R U E B A S
+
+        #if patron_definiciones.search(texto_ejemplo):
+        #    print("Se encontró una coincidencia.")
+        #else:
+        #    print("No se encontró ninguna coincidencia.")
+        
+#-------------------------------------------------
+
+        resultados_list = []
+        for idx, resultado in enumerate(resultados_definiciones, start=1):
+            titulo = resultado.find("h2").get_text()
+            link = resultado.find("a")["href"]
+            descripcion = resultado.find("p").get_text()
+
+            if patron_definiciones.search(descripcion):
+                match = patron_definiciones.search(descripcion)
+                print(match.group())
+                resultados_list.append({
+                    'title': titulo,
+                    'url': link,
+                    'description': descripcion
+                })
+    else:
+        print(f"Error al realizar la búsqueda. Código de estado: {response.status_code}")
+        resultados_list = []
+        
+    # Eliminar duplicados
+    resultados_list = [dict(t) for t in set(tuple(d.items()) for d in resultados_list)]
+
+   
+    return resultados_list
+
 """
     ===============================
     ========  R E L A C I O N E S =========
