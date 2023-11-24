@@ -1,180 +1,124 @@
-from flask import Flask, request, jsonify
-from flask_cors import cross_origin
-import requests
 from bs4 import BeautifulSoup
+from flask import Flask, request, jsonify
+from flask_cors import cross_origin, CORS
+import re
+import requests
 
 app = Flask(__name__)
-
-@app.route('/handle_data', methods=['POST'])
-@cross_origin()
-def handle_data():
- data = request.get_json()
- termino = data['termino']
- resultados = buscar_en_bing(termino)
- return jsonify({'results': resultados})
-
-import re
-
-# ... (código previo)
-
-def buscar_en_bing(query, num_resultados=50):
-    for pagina in range(1, 6):
-        
-        offset = (pagina - 1) * num_resultados
-        url = f"https://www.bing.com/search?q={query}&offset={offset}&count={num_resultados}&setLang=es-MX&mkt=es-MX"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "html.parser")
-        resultados_definiciones = soup.find_all("li", class_="b_algo")
-        patrones = [
-            r'\.\s+(\w+)\b', # Verifica si hay un punto delante del término buscado
-            r'\b(?:un[ao]?s?|una[s]?|uno[s]?|el[ao]?s?|la[s]?|los|las|unos?|unas?)\b\s+(\w+)\b', # Verifica si hay un artículo delante del término buscado
-            r'\b(?:se\s+describe|se\s+concibe|es\s+concebido|es)\b', # Verifica si hay "se describe" o "se concibe" después del término buscado
-            # ... otras variantes que puedan indicar definiciones
-        ]
-
-        patron_definiciones = re.compile('|'.join(patrones), re.IGNORECASE)
-
-        resultados_list = []
-        for idx, resultado in enumerate(resultados_definiciones, start=1):
-            titulo = resultado.find("h2").get_text()
-            link = resultado.find("a")["href"]
-            descripcion = resultado.find("p").get_text()
-
-            if patron_definiciones.search(descripcion):
-                resultados_list.append({
-                    'title': titulo,
-                    'url': link,
-                    'description': descripcion
-                })
-    else:
-        print(f"Error al realizar la búsqueda. Código de estado: {response.status_code}")
-        resultados_list = []
-
-    return resultados_list
+CORS(app, origins="http://127.0.0.1:5500")
 
 
-"""
-OTRA FUNCION
+patrones_definiciones = [
+    r"\.\s+(\w+)\b",
+    r"\b(?:es\s+una)\b\s+(\w+)\b",
+    r"\b(?:significa)\b\s+(\w+)\b",
+    r"\b(?:se\s+define\s+como)\b\s+(\w+)\b",
+    r"\b(?:se\s+refiere\s+a)\b\s+(\w+)\b",
+    r"\b(?:corresponde\s+a)\b\s+(\w+)\b",
+    r"\b(?:se\s+caracteriza\s+por)\b\s+(\w+)\b",
+    r"\b(?:se\s+denomina)\b\s+(\w+)\b",
+    r"\b(?:se\s+conoce\s+como)\b\s+(\w+)\b",
+    r"\b(?:se\s+entiende\s+por)\b\s+(\w+)\b",
+    r"\b(?:se\s+trata\s+de)\b\s+(\w+)\b",
+]
 
-"""
-@app.route('/casos', methods=['POST'])
-@cross_origin()
-def casos():
+patrones_casos = [
+    r"\b(?:consiste\s+en)\b\s+(\w+)\b",
+    r"\b(?:consta\s+de)\b\s+(\w+)\b",
+    r"\b(?:está\s+compuesta\s+por)\b\s+(\w+)\b",
+    r"\b(?:está\s+fabricada)\b\s+(\w+)\b",
+    r"\b(?:tiene)\b\s+(\w+)\b",
+    r"\b(?:se\s+encuentra\s+en)\b\s+(\w+)\b",
+    r"\b(?:se\s+manifiesta\s+como)\b\s+(\w+)\b",
+    r"\b(?:se\s+observa\s+en)\b\s+(\w+)\b",
+    r"\b(?:se\s+produce\s+cuando)\b\s+(\w+)\b",
+    r"\b(?:se\s+origina\s+por)\b\s+(\w+)\b",
+]
+
+patrones_funciones = [
+    r"\b(?:se\s+usa)\b\s+(\w+)\b",
+    r"\b(?:se\s+utiliza)\b\s+(\w+)\b",
+    r"\b(?:sirve\s+para)\b\s+(\w+)\b",
+    r"\b(?:cumple\s+la\s+función\s+de)\b\s+(\w+)\b",
+    r"\b(?:apropiado\s+para)\b\s+(\w+)\b",
+    r"\b(?:proporciona)\b\s+(\w+)\b",
+    r"\b(?:favorece\s+la\s+)\b\s+(\w+)\b",
+    r"\b(?:contribuye\s+a)\b\s+(\w+)\b",
+    r"\b(?:mejora\s+)\b\s+(\w+)\b",
+    r"\b(?:facilita\s+)\b\s+(\w+)\b",
+]
+
+
+@app.route("/search", methods=["POST"])
+def search():
     data = request.get_json()
-    termino = data['termino']
-    resultados = buscar_en_bing_casos(termino)
-    return jsonify({'results2': resultados})
+    termino = data["termino"]
+    resultados_definiciones = buscar_en_bing(
+        termino,
+        patrones_definiciones,
+    )
+    resultados_casos = buscar_en_bing(
+        termino,
+        patrones_casos,
+        #
+    )
+    resultados_funcion = buscar_en_bing(
+        termino,
+        patrones_funciones,
+    )
+    return jsonify(
+        {
+            "results_definiciones": resultados_definiciones,
+            "results_casos": resultados_casos,
+            "results_funcion": resultados_funcion,
+        }
+    )
 
-def buscar_en_bing_casos(query, num_resultados=50):
+
+# BUSCA LA DEFINICION DE LA PALABRA. Por ejemplo: "La computadora es una máquina que recibe y procesa datos para convertirlos en información útil."
+def buscar_en_bing(
+    query,
+    patterns=[],
+    blacklist=[],
+    num_resultados=50,
+):
+    resultados_list = []
+
     for pagina in range(1, 6):
-        
         offset = (pagina - 1) * num_resultados
-        url = f"https://www.bing.com/search?q={query}&offset={offset}&count={num_resultados}&setLang=es-MX&mkt=es-MX"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    response = requests.get(url, headers=headers)
+        url = f"https://www.bing.com/search?q={query}&count={num_resultados}&setLang=es-ES&mkt=es-ES&first={offset}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
 
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "html.parser")
-        resultados_definiciones = soup.find_all("li", class_="b_algo")
-        patrones = [
-             r'\.\s+(\w+)\b',
-             r'\b(?:consiste\s+en|consta\s+de|esta\s+compuesta|esta\s+fabricada|esta\s+hecho|esta\s+hecha|esta\s+fabricada|esta\s+fabricado|tiene|contiene|cuenta\s+con|consta\s+de)\b',
-             # Verifica si hay "se describe" o "se concibe" después del término buscado
-        ]
+        try:
+            response = requests.get(url, headers=headers)
 
-        patron_definiciones = re.compile('|'.join(patrones), re.IGNORECASE)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, "html.parser")
+                resultados = soup.find_all("li", class_="b_algo")
+                resultados = list(dict.fromkeys(resultados))
 
-        resultados_list = []
-        for idx, resultado in enumerate(resultados_definiciones, start=1):
-            titulo = resultado.find("h2").get_text()
-            link = resultado.find("a")["href"]
-            descripcion = resultado.find("p").get_text()
+                patron_definiciones = re.compile("|".join(patterns), re.IGNORECASE)
 
-            if patron_definiciones.search(descripcion):
-                resultados_list.append({
-                    'title': titulo,
-                    'url': link,
-                    'description': descripcion
-                })
-    else:
-        print(f"Error al realizar la búsqueda. Código de estado: {response.status_code}")
-        resultados_list = []
-        
-    # Eliminar duplicados
-    resultados_list = [dict(t) for t in set(tuple(d.items()) for d in resultados_list)]
+                for _, resultado in enumerate(resultados, start=1):
+                    titulo = resultado.find("h2").get_text()
+                    link = resultado.find("a")["href"]
+                    descripcion = resultado.find("p").get_text()
 
-   
+                    if patron_definiciones.search(descripcion):
+                        resultados_list.append(
+                            {"title": titulo, "url": link, "description": descripcion}
+                        )
+            else:
+                print(
+                    f"Error al realizar la búsqueda. Código de estado: {response.status_code}"
+                )
+        except requests.exceptions.RequestException as e:
+            print(f"Error de conexión: {e}")
+
     return resultados_list
 
-
-################
-
-@app.route('/funcion', methods=['POST'])
-@cross_origin()
-def funcion():
-    data = request.get_json()
-    termino = data['termino']
-    resultados = buscar_en_bing_funcion(termino)
-    return jsonify({'results3': resultados})
-
-def buscar_en_bing_funcion(query, num_resultados=50):
-    for pagina in range(1, 6):
-        
-        offset = (pagina - 1) * num_resultados
-        url = f"https://www.bing.com/search?q={query}&offset={offset}&count={num_resultados}&setLang=es-MX&mkt=es-MX"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "html.parser")
-        resultados_definiciones = soup.find_all("li", class_="b_algo")
-        
-        patrones = [
-            r'\.\s+(\w+)\b', # Verifica si hay un punto delante del término buscado
-            r'(\b(?:se\s+usa|se\s+utiliza|se\s+usan|se\s+utilizan|sirve|sirven|sirven\s+para)\s+(\w+))', # Captura "se usa", "se utiliza", "se usan", "se utilizan", "sirve", "sirven", "sirven para" y la palabra después de ellas
-            ]
-        #texto_ejemplo = "La computadora está compuesta por varios componentes, como el procesador, la memoria y el disco duro. Se utiliza para una variedad de tareas, como navegar por internet, editar documentos y jugar videojuegos."
-
-        patron_definiciones = re.compile('|'.join(patrones), re.IGNORECASE)
-
-#-------------P R U E B A S
-
-        #if patron_definiciones.search(texto_ejemplo):
-        #    print("Se encontró una coincidencia.")
-        #else:
-        #    print("No se encontró ninguna coincidencia.")
-        
-#-------------------------------------------------
-
-        resultados_list = []
-        for idx, resultado in enumerate(resultados_definiciones, start=1):
-            titulo = resultado.find("h2").get_text()
-            link = resultado.find("a")["href"]
-            descripcion = resultado.find("p").get_text()
-
-            if patron_definiciones.search(descripcion):
-                match = patron_definiciones.search(descripcion)
-                print(match.group())
-                resultados_list.append({
-                    'title': titulo,
-                    'url': link,
-                    'description': descripcion
-                })
-    else:
-        print(f"Error al realizar la búsqueda. Código de estado: {response.status_code}")
-        resultados_list = []
-        
-    # Eliminar duplicados
-    resultados_list = [dict(t) for t in set(tuple(d.items()) for d in resultados_list)]
-
-   
-    return resultados_list
 
 """
     ===============================
@@ -205,44 +149,44 @@ def buscar_en_bing_funcion(query, num_resultados=50):
 """
 
 
-@app.route('/buscar_ing', methods=['POST'])
+@app.route("/buscar_ing", methods=["POST"])
 @cross_origin()
 def buscar_ing():
- data = request.get_json()
- termino = data['termino']
- resultados = buscar_en_bing_ing(termino)
- return jsonify({'results': resultados})
+    data = request.get_json()
+    termino = data["termino"]
+    resultados = buscar_en_bing_ing(termino)
+    return jsonify({"results": resultados})
+
 
 def buscar_en_bing_ing(query, num_resultados=10):
- url = f"https://www.bing.com/search?q={query}&count={num_resultados}&setLang=en&mkt=en-US"
- headers = {
-     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
- }
+    url = f"https://www.bing.com/search?q={query}&count={num_resultados}&setLang=en&mkt=en-US"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
 
- response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers)
 
- if response.status_code == 200:
-     soup = BeautifulSoup(response.text, "html.parser")
-     resultados = soup.find_all("li", class_="b_algo")
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        resultados = soup.find_all("li", class_="b_algo")
 
-     resultados_list2 = []
-     for idx, resultado in enumerate(resultados, start=1):
-         titulo = resultado.find("h2").get_text()
-         link = resultado.find("a")["href"]
-         descripcion = resultado.find("p").get_text()
-         
-         resultados_list2.append({
-             'title': titulo,
-             'url': link,
-             'description': descripcion
-         })
- else:
-     print(f"Error al realizar la búsqueda. Código de estado: {response.status_code}")
-     resultados_list2 = []
+        resultados_list2 = []
+        for idx, resultado in enumerate(resultados, start=1):
+            titulo = resultado.find("h2").get_text()
+            link = resultado.find("a")["href"]
+            descripcion = resultado.find("p").get_text()
 
- return resultados_list2
+            resultados_list2.append(
+                {"title": titulo, "url": link, "description": descripcion}
+            )
+    else:
+        print(
+            f"Error al realizar la búsqueda. Código de estado: {response.status_code}"
+        )
+        resultados_list2 = []
 
+    return resultados_list2
 
 
 if __name__ == "__main__":
-  app.run(debug=True)
+    app.run(debug=True)
