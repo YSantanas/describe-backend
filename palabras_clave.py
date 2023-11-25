@@ -57,3 +57,58 @@ palabras_clave_funcionalidades = [
         "funciones",
         "funcionalidades",
     ]
+
+
+###################################
+##########  I N G L E S   #######
+###################################
+
+
+palabras_clave_definicion2 = [
+    "is",
+    "constitutes",
+    "consists",
+    "defines",
+    "denotes",
+    "knows",
+    "understands",
+    "deals with",
+    "refers to",
+    "calls",
+]
+
+palabras_clave_componentes2 = [
+    "contains",
+    "comprises",
+    "includes",
+    "has",
+    "is found",
+    "locates",
+    "places",
+    "components",
+    "parts",
+    "elements",
+    "divides",
+    "separates",
+    "classifies",
+    "organizes",
+    "groups",
+    "structures",
+]
+
+palabras_clave_funcionalidades2 = [
+    "performs",
+    "does",
+    "serves",
+    "uses",
+    "used",
+    "uses",
+    "uses",
+    "employs",
+    "serves",
+    "works",
+    "function",
+    "functioning",
+    "functions",
+    "functionalities",
+]
