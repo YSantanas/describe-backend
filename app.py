@@ -152,7 +152,7 @@ def filtrar_resultados(resultados):
     """
 
 @app.route("/buscarIng", methods=["POST"])
-def buscar2():
+def buscarIng():
     palabra = request.get_json()["palabra"]
     print(f"Palabra: {palabra}")
 
@@ -276,7 +276,6 @@ def filtrar_resultados2(resultados):
             pass
 
     return definiciones, partes, funcionalidades
-
 
 
 if __name__ == "__main__":

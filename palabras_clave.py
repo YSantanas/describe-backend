@@ -2,7 +2,7 @@
 """
 Created on Fri Nov 24 22:40:26 2023
 
-@author: lexsa
+@author: Santana Sánchez María Yvette
 """
 
 # Palabras clave para cada categoría
