@@ -87,7 +87,11 @@ def buscar_bing(palabra=""):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        response = requests.get(url, headers=headers)
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+        except requests.exceptions.ChunkedEncodingError:
+            print("Ocurrió un error ChunkedEncodingError")
+            
         soup = BeautifulSoup(response.text, "lxml")
         resultados = soup.find_all("li", class_="b_algo")
         resultados_list.extend(resultados)
@@ -221,7 +225,7 @@ def buscar_bing2(palabra=""):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=30)
         soup = BeautifulSoup(response.text, "lxml")
         resultados = soup.find_all("li", class_="b_algo")
         resultados_list.extend(resultados)
